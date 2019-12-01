@@ -57,11 +57,18 @@ int main(void)
         delay(1500);
 
         lcdGdiClear(0);
-        lcdGdiRectangle(0, 0, 63, 31, LCD_COLOUR_BLACK, 1);
-        lcdGdiRectangle(63, 31, 127, 63, LCD_COLOUR_BLACK, 1);
+        lcdGdiRectangle(0, 0, 47, 47, LCD_COLOUR_WHITE, 1);
+        lcdGdiRectangle(48, 0, 95, 47, LCD_COLOUR_LIGHT_GREY, 1);
+        lcdGdiRectangle(96, 0, 143, 47, LCD_COLOUR_DARK_GREY, 1);
+        lcdGdiRectangle(144, 0, 191, 47, LCD_COLOUR_BLACK, 1);
+        
+        lcdGdiRectangle(0, 48, 47, 95, LCD_COLOUR_BLACK, 1);
+        lcdGdiRectangle(48, 48, 95, 95, LCD_COLOUR_WHITE, 1);
+        lcdGdiRectangle(96, 48, 143, 95, LCD_COLOUR_LIGHT_GREY, 1);
+        lcdGdiRectangle(144, 48, 191, 95, LCD_COLOUR_DARK_GREY, 1);
         lcdGdiUpdate();
         printf("rectangle ok!\n");
-        delay(1500);
+        delay(5000);
 
         lcdGdiClear(0);
         lcdGdiCircle(63, 31, 30, LCD_COLOUR_BLACK, 1);
