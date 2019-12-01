@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "lcd192x96.h": "c",
+        "stdio.h": "c"
+    }
+}
