@@ -125,7 +125,6 @@ static void lcdDrvSendData(uint8_t dat, uint8_t cmd)
 
 void lcdDrvSetMode(void)
 {
-
   lcdDrvSendData(0x30, LCD_SEND_MODE_CMD); //EXT=0
 
   lcdDrvSendData(0xF0, LCD_SEND_MODE_CMD);               //Display Mode
@@ -223,7 +222,7 @@ void lcdDrvInit(void)
   lcdDrvSendData(0x0B, LCD_DISP_MODE_DAT); // VB, VR, VF All ON
 
   lcdDrvSendData(0x81, LCD_SEND_MODE_CMD); // Set Vop = 16V
-  lcdDrvSendData(0x28, LCD_DISP_MODE_DAT);
+  lcdDrvSendData(0x28, LCD_DISP_MODE_DAT); //对比度设置,这里要根据自己的屏调整,不然可能会不显示
   lcdDrvSendData(0x03, LCD_DISP_MODE_DAT);
 
   lcdDrvSendData(0x31, LCD_SEND_MODE_CMD); // Extension Command 2
