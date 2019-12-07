@@ -388,19 +388,10 @@ int32_t lcd_drv_get_point(int32_t x, int32_t y)
 void lcd_drv_bmp_speed(int32_t x0, int32_t y0, int32_t width, int32_t height, uint8_t *bmp, int32_t colour)
 {
   int32_t x = 0, y = 0;
-  int32_t width_t = width;
-  int32_t i = 0;
   uint8 dat = 0;
 
   x0 = ((x0 >= LCD_DRV_MAX_X) ? (LCD_DRV_MAX_X - 1) : ((x0 < 0) ? 0 : x0));
   y0 = ((y0 >= LCD_DRV_MAX_Y) ? (LCD_DRV_MAX_Y - 1) : ((y0 < 0) ? 0 : y0));
-
-#if 0
-  if ((y0 % LCD_DRV_PAGE_ROW) != 0)
-  {
-    y0 = ((y0 / LCD_DRV_PAGE_ROW) + 1) * LCD_DRV_PAGE_ROW;
-  }
-#endif
 
   height = ((height + y0) >= LCD_DRV_MAX_Y) ? LCD_DRV_MAX_Y - y0 : height;
   y0 = ((y0 % LCD_DRV_PAGE_ROW == 0) ? (y0 / LCD_DRV_PAGE_ROW) : (y0 / LCD_DRV_PAGE_ROW + 1));
@@ -408,17 +399,17 @@ void lcd_drv_bmp_speed(int32_t x0, int32_t y0, int32_t width, int32_t height, ui
   height = ((height % LCD_DRV_PAGE_ROW == 0) ? (height / LCD_DRV_PAGE_ROW) : (height / LCD_DRV_PAGE_ROW + 1));
 
   //lcd_drv_set_mode();
-  #if 0
-  for (y = y0; y < height; y++)
+  #if 1
+  for (y = y0; y < y0 + height; y++)
   {
     lcd_drv_set_pos(x0, y);
     lcd_drv_send_data(0x5C, LCD_SEND_MODE_CMD); // write data to lcd
-    for (x = x0; x < width; x++)
+    for (x = x0; x < x0 + width; x++)
     {
-      if ((x >= LCD_DRV_MAX_X) || (y >= LCD_DRV_PAGE_MAX))
-      {
-        break;
-      }
+      // if ((x >= LCD_DRV_MAX_X) || (y >= LCD_DRV_PAGE_MAX))
+      // {
+      //   break;
+      // }
       dat = *bmp++;
       lcd_drv_send_data(((colour != 0) ? dat : ~dat), LCD_DISP_MODE_DAT);
     }

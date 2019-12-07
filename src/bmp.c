@@ -14,7 +14,7 @@ typedef struct lcd_img_hdr_s
     int32_t pixel_bit;    //每个像素点所占的bit
 } lcd_img_hdr_t;
 
-#define IMG_FRAME_DELAY (10) //16.75ms
+#define IMG_FRAME_DELAY  (24)
 
 #define IMG_HDR_FLAG (0x4649564c) //"LVIF"
 
@@ -189,24 +189,21 @@ int32_t bmp_show(int32_t x0, int32_t y0, int32_t colour)
     }
 
     bmp_buff = (BMP_FILE_BUFF + (frame * IMG_FRAME_LEN));
-#if 1
+#if 1 // Center
     x0 = ((LCD_MAX_X - IMG_HDR.lcd_width) / 2) - 1;
-    y0 = ((LCD_MAX_Y - IMG_HDR.lcd_height) / 2) - 1;
+    // y0 = ((LCD_MAX_Y - IMG_HDR.lcd_height) / 2) - 1;
 #endif
     if (lcd_putbmpspeed(x0, y0, IMG_HDR.lcd_width, IMG_HDR.lcd_height, bmp_buff, colour) != OK)
     {
         return LCD_CTRL_STOP;
     }
 
-#if 0 //DEBUG
-    sprintf(frame_string, "%04d", frame);
-    led_puts(0, 10, frame_string, colour, !colour);
-#endif
     lcd_update();
     frame_fps1 = GetTickCount();
-    if ((frame_fps1 - frame_fps0) < (1000 / IMG_HDR.video_fps))
+    video_fps_delay = (1000 / IMG_HDR.video_fps);
+    if ((frame_fps1 - frame_fps0) < video_fps_delay)
     {
-        video_fps_delay = ((1000 / IMG_HDR.video_fps) - (frame_fps1 - frame_fps0) + IMG_FRAME_DELAY);
+        video_fps_delay = (video_fps_delay - (frame_fps1 - frame_fps0) + IMG_FRAME_DELAY);
         if(video_fps_delay > 0) 
         {
             DEBUG_LOG("Waiting [%d]ms ...", video_fps_delay);
