@@ -27,44 +27,49 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <wiringPi.h>
 
 // Size
-#define LCD_WIDTH_X 192
-#define LCD_HEIGHT_Y 96
-#define LCD_COLOUR_BIT      (2)
-#define LCD_COLOUT_BIT_MSK  (0x03)
-#define LCD_HEIGHT_PAGE_ROW (8/LCD_COLOUR_BIT)
-#define LCD_HEIGHT_PAGE_MAX (LCD_HEIGHT_Y/LCD_HEIGHT_PAGE_ROW)
+#define LCD_DRV_MAX_X (192)
+#define LCD_DRV_MAX_Y (96)
+#define LCD_DRV_COLOUR_BIT (2)
+#define LCD_DRV_COLOUR_BIT_MSK (0x03)
+#define LCD_DRV_PAGE_ROW (8 / LCD_DRV_COLOUR_BIT)
+#define LCD_DRV_PAGE_MAX (LCD_DRV_MAX_Y / LCD_DRV_PAGE_ROW)
+
+#define LCD_DRV_INCLUDE_GUILIB 0
 
 typedef enum lcd_colour_e
 {
-    LCD_COLOUR_WHITE = 0,
-    LCD_COLOUR_LIGHT_GREY,
-    LCD_COLOUR_DARK_GREY,
-    LCD_COLOUR_BLACK,
-    LCD_COLOUR_MAX,
-} lcd_colour_t;
+    LCD_DRV_COLOUR_WHITE = 0,
+    LCD_DRV_COLOUR_LIGHT_GREY,
+    LCD_DRV_COLOUR_DARK_GREY,
+    LCD_DRV_COLOUR_BLACK,
+    LCD_DRV_COLOUR_MAX,
+} lcd_drv_colour_t;
 
-extern void lcdGdiGetScreenSize(int32_t *x, int32_t *y);
-extern void lcdGdiSetOrientation(int32_t orientation);
-extern void lcdGdiPoint(int32_t x, int32_t y, int32_t colour);
-extern int32_t lcdGdiGetpoint(int32_t x, int32_t y);
-extern void lcdGdiLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t colour);
-extern void lcdGdiLineTo(int32_t x, int32_t y, int32_t colour);
-extern void lcdGdiRectangle(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t colour, int32_t filled);
-extern void lcdGdiCircle(int32_t x, int32_t y, int32_t r, int32_t colour, int32_t filled);
-extern void lcdGdiEllipse(int32_t cx, int32_t cy, int32_t xRadius, int32_t yRadius, int32_t colour, int32_t filled);
-extern void lcdGdiPutchar(int32_t x, int32_t y, int32_t c, int32_t bgCol, int32_t fgCol);
-extern void lcdGdiPuts(int32_t x, int32_t y, const char *str, int32_t bgCol, int32_t fgCol);
-extern void lcdGdiPutnum(int32_t x, int32_t y, int32_t num, int32_t bgCol, int32_t fgCol);
-extern void lcdGdiPutbmp(int32_t x0, int32_t y0, int32_t with, int32_t height, uint8_t *bmp, int32_t colour);
-extern void lcdGdiPutbmpspeed(int32_t x0, int32_t y0, int32_t with, int32_t height, uint8_t *bmp, int32_t colour);
-extern void lcdGdiUpdate(void);
-extern void lcdGdiOpen(void);
-extern void lcdGdiCloase(void);
-extern void lcdGdiHardwareClear(void);
-extern void lcdGdiClear(int32_t colour);
+extern void lcd_drv_set_point(int32_t x, int32_t y, int32_t colour);
+extern int32_t lcd_drv_get_point(int32_t x, int32_t y);
+extern void lcd_drv_bmp_speed(int32_t x0, int32_t y0, int32_t width, int32_t height, uint8_t *bmp, int32_t colour);
+extern void lcd_drv_update(void);
+extern void lcd_drv_open(void);
+extern void lcd_drv_close(void);
+extern void lcd_drv_hw_clear(void);
+extern void lcd_drv_clear(int32_t colour);
+extern int32_t lcd_drv_init(void);
 
-extern int32_t lcdGdiSetup(void);
+#if LCD_DRV_INCLUDE_GUILIB
+extern void lcd_drv_get_screen_size(int32_t *x, int32_t *y);
+extern void lcd_drv_set_orientation(int32_t orientation);
+extern void lcd_drv_line(int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t colour);
+extern void lcd_drv_lineto(int32_t x, int32_t y, int32_t colour);
+extern void lcd_drv_rectangle(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t colour, int32_t filled);
+extern void lcd_drv_circle(int32_t x, int32_t y, int32_t r, int32_t colour, int32_t filled);
+extern void lcd_drv_ellipse(int32_t cx, int32_t cy, int32_t xRadius, int32_t yRadius, int32_t colour, int32_t filled);
+extern void lcd_drv_putc(int32_t x, int32_t y, int32_t c, int32_t bgCol, int32_t fgCol);
+extern void lcd_drv_puts(int32_t x, int32_t y, const char *str, int32_t bgCol, int32_t fgCol);
+extern void lcd_drv_putn(int32_t x, int32_t y, int32_t num, int32_t bgCol, int32_t fgCol);
+extern void lcd_drv_bmp(int32_t x0, int32_t y0, int32_t with, int32_t height, uint8_t *bmp, int32_t colour);
+#endif
 
 #endif

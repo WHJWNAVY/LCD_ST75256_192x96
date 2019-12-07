@@ -1,4 +1,4 @@
-﻿/*
+/*
  * lcdGdi.c:
  *	Graphics-based LCD driver.
  *	This is designed to drive the parallel interface LCD drivers
@@ -77,7 +77,7 @@ typedef enum lcd_send_mode_e
 #define LCD_GPIO_SDA_Set() digitalWrite(LCD_GPIO_SDA, HIGH);
 
 // Software copy of the framebuffer
-static uint8_t frameBuffer[LCD_HEIGHT_PAGE_MAX][LCD_WIDTH_X] = {0};
+static uint8_t frameBuffer[LCD_DRV_PAGE_MAX][LCD_DRV_MAX_X] = {0};
 
 static const uint8_t BIT_SET[8] = {0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80};
 static const uint8_t BIT_CLR[8] = {0xFE, 0XFD, 0XFB, 0XF7, 0XEF, 0XDF, 0XBF, 0X7F};
@@ -90,7 +90,7 @@ static int32_t mirrorX = 0, mirrorY = 0;
  *	Send an data or command byte to the display.
  *********************************************************************************
  */
-static void lcdDrvSendData(uint8_t dat, uint8_t cmd)
+static void lcd_drv_send_data(uint8_t dat, uint8_t cmd)
 {
   uint8_t i = 0;
   uint8_t tmp = 0;
@@ -123,71 +123,91 @@ static void lcdDrvSendData(uint8_t dat, uint8_t cmd)
   //LCD_GPIO_DC_Set();
 }
 
-void lcdDrvSetMode(void)
+void lcd_drv_set_pos(int32_t x0, int32_t y0)
 {
-  lcdDrvSendData(0x30, LCD_SEND_MODE_CMD); //EXT=0
+  x0 = ((x0 >= LCD_DRV_MAX_X) ? (LCD_DRV_MAX_X - 1) : ((x0 < 0) ? 0 : x0));
+  y0 = ((y0 >= LCD_DRV_PAGE_MAX) ? (LCD_DRV_PAGE_MAX - 1) : ((y0 < 0) ? 0 : y0));
 
-  lcdDrvSendData(0xF0, LCD_SEND_MODE_CMD);               //Display Mode
-  lcdDrvSendData(LCD_DISP_MODE_GRAY, LCD_DISP_MODE_DAT); //10=Mono, 11=4Gray
+  //y0 = ((y0 % LCD_DRV_PAGE_ROW == 0) ? (y0 / LCD_DRV_PAGE_ROW) : (y0 / LCD_DRV_PAGE_ROW + 1));
 
-  lcdDrvSendData(0x75, LCD_SEND_MODE_CMD);                    //Page Address setting
-  lcdDrvSendData(0X00, LCD_DISP_MODE_DAT);                    // YS=0
-  lcdDrvSendData(LCD_HEIGHT_PAGE_MAX - 1, LCD_DISP_MODE_DAT); // YE=95	  11->mono  23->gray
+  lcd_drv_send_data(0x75, LCD_SEND_MODE_CMD);                 //Page Address setting
+  lcd_drv_send_data(y0, LCD_DISP_MODE_DAT);                 // YS=0
+  lcd_drv_send_data(LCD_DRV_PAGE_MAX - 1, LCD_DISP_MODE_DAT); // YE=95	  11->mono  23->gray
 
-  lcdDrvSendData(0x15, LCD_SEND_MODE_CMD);            //Clumn Address setting
-  lcdDrvSendData(0X00, LCD_DISP_MODE_DAT);            // XS=0
-  lcdDrvSendData(LCD_WIDTH_X - 1, LCD_DISP_MODE_DAT); // XE=191
-
-  lcdDrvSendData(0xCA, LCD_SEND_MODE_CMD);             // Display Control
-  lcdDrvSendData(0x00, LCD_DISP_MODE_DAT);             // CL Dividing Ratio Not Divide
-  lcdDrvSendData(LCD_HEIGHT_Y - 1, LCD_DISP_MODE_DAT); //Duty Set 96 Duty
-  lcdDrvSendData(0x00, LCD_DISP_MODE_DAT);             //Frame Inversion
+  lcd_drv_send_data(0x15, LCD_SEND_MODE_CMD);              //Clumn Address setting
+  lcd_drv_send_data(x0, LCD_DISP_MODE_DAT);              // XS=0
+  lcd_drv_send_data(LCD_DRV_MAX_X - 1, LCD_DISP_MODE_DAT); // XE=191
 }
 
-void lcdDrvGrayTest()
+void lcd_drv_set_mode(void)
+{
+  lcd_drv_send_data(0x30, LCD_SEND_MODE_CMD); //EXT=0
+
+  lcd_drv_send_data(0xF0, LCD_SEND_MODE_CMD);               //Display Mode
+  lcd_drv_send_data(LCD_DISP_MODE_GRAY, LCD_DISP_MODE_DAT); //10=Mono, 11=4Gray
+
+#if 0
+  lcd_drv_send_data(0x75, LCD_SEND_MODE_CMD);                 //Page Address setting
+  lcd_drv_send_data(0X00, LCD_DISP_MODE_DAT);                 // YS=0
+  lcd_drv_send_data(LCD_DRV_PAGE_MAX - 1, LCD_DISP_MODE_DAT); // YE=95	  11->mono  23->gray
+
+  lcd_drv_send_data(0x15, LCD_SEND_MODE_CMD);              //Clumn Address setting
+  lcd_drv_send_data(0X00, LCD_DISP_MODE_DAT);              // XS=0
+  lcd_drv_send_data(LCD_DRV_MAX_X - 1, LCD_DISP_MODE_DAT); // XE=191
+#else
+  lcd_drv_set_pos(0, 0);
+#endif
+
+  lcd_drv_send_data(0xCA, LCD_SEND_MODE_CMD);              // Display Control
+  lcd_drv_send_data(0x00, LCD_DISP_MODE_DAT);              // CL Dividing Ratio Not Divide
+  lcd_drv_send_data(LCD_DRV_MAX_Y - 1, LCD_DISP_MODE_DAT); //Duty Set 96 Duty
+  lcd_drv_send_data(0x00, LCD_DISP_MODE_DAT);              //Frame Inversion
+}
+
+void lcd_drv_test_gray()
 {
   uint8_t i = 0, j = 0;
-  lcdDrvSetMode();
-  lcdDrvSendData(0x5c, LCD_SEND_MODE_CMD);
+  lcd_drv_set_mode();
+  lcd_drv_send_data(0x5c, LCD_SEND_MODE_CMD);
 
-  for (i = 0; i < LCD_HEIGHT_PAGE_MAX / 4; i++)
+  for (i = 0; i < LCD_DRV_PAGE_MAX / 4; i++)
   {
-    for (j = 0; j < LCD_WIDTH_X; j++)
+    for (j = 0; j < LCD_DRV_MAX_X; j++)
     {
-      lcdDrvSendData(0xff, LCD_DISP_MODE_DAT);
+      lcd_drv_send_data(0xff, LCD_DISP_MODE_DAT);
       delay_ms(1);
     }
   }
 
-  for (i = 0; i < LCD_HEIGHT_PAGE_MAX / 4; i++)
+  for (i = 0; i < LCD_DRV_PAGE_MAX / 4; i++)
   {
-    for (j = 0; j < LCD_WIDTH_X; j++)
+    for (j = 0; j < LCD_DRV_MAX_X; j++)
     {
-      lcdDrvSendData(0xaa, LCD_DISP_MODE_DAT);
+      lcd_drv_send_data(0xaa, LCD_DISP_MODE_DAT);
       delay_ms(1);
     }
   }
 
-  for (i = 0; i < LCD_HEIGHT_PAGE_MAX / 4; i++)
+  for (i = 0; i < LCD_DRV_PAGE_MAX / 4; i++)
   {
-    for (j = 0; j < LCD_WIDTH_X; j++)
+    for (j = 0; j < LCD_DRV_MAX_X; j++)
     {
-      lcdDrvSendData(0x55, LCD_DISP_MODE_DAT);
+      lcd_drv_send_data(0x55, LCD_DISP_MODE_DAT);
       delay_ms(1);
     }
   }
 
-  for (i = 0; i < LCD_HEIGHT_PAGE_MAX / 4; i++)
+  for (i = 0; i < LCD_DRV_PAGE_MAX / 4; i++)
   {
-    for (j = 0; j < LCD_WIDTH_X; j++)
+    for (j = 0; j < LCD_DRV_MAX_X; j++)
     {
-      lcdDrvSendData(0x00, LCD_DISP_MODE_DAT);
+      lcd_drv_send_data(0x00, LCD_DISP_MODE_DAT);
       delay_ms(1);
     }
   }
 }
 
-void lcdDrvInit(void)
+void lcd_drv_hw_init(void)
 {
   wiringPiSetup();
   pinMode(LCD_GPIO_SCL, OUTPUT);
@@ -202,99 +222,332 @@ void lcdDrvInit(void)
   delay_ms(10);
   LCD_GPIO_RST_Set();
 
-  //lcdDrvSendData(0x30, LCD_SEND_MODE_CMD); // Extension Command 1
-  //lcdDrvSendData(0x6E, LCD_SEND_MODE_CMD); //Enable Master
-  lcdDrvSendData(0x31, LCD_SEND_MODE_CMD); // Extension Command 2
-  lcdDrvSendData(0xD7, LCD_SEND_MODE_CMD); // Disable Auto Read
-  lcdDrvSendData(0x9F, LCD_DISP_MODE_DAT);
-  //lcdDrvSendData(0xE0, LCD_SEND_MODE_CMD); // Enable OTP Read
-  //lcdDrvSendData(0x00, LCD_DISP_MODE_DAT);
+  //lcd_drv_send_data(0x30, LCD_SEND_MODE_CMD); // Extension Command 1
+  //lcd_drv_send_data(0x6E, LCD_SEND_MODE_CMD); //Enable Master
+  lcd_drv_send_data(0x31, LCD_SEND_MODE_CMD); // Extension Command 2
+  lcd_drv_send_data(0xD7, LCD_SEND_MODE_CMD); // Disable Auto Read
+  lcd_drv_send_data(0x9F, LCD_DISP_MODE_DAT);
+  //lcd_drv_send_data(0xE0, LCD_SEND_MODE_CMD); // Enable OTP Read
+  //lcd_drv_send_data(0x00, LCD_DISP_MODE_DAT);
   delay_ms(10);
-  //lcdDrvSendData(0xE3, LCD_SEND_MODE_CMD); // OTP Up-Load
+  //lcd_drv_send_data(0xE3, LCD_SEND_MODE_CMD); // OTP Up-Load
   delay_ms(20);
-  //lcdDrvSendData(0xE1, LCD_SEND_MODE_CMD); // OTP Control Out
-  lcdDrvSendData(0x30, LCD_SEND_MODE_CMD); // Extension Command 1
-  lcdDrvSendData(0x94, LCD_SEND_MODE_CMD); // Sleep Out
-  lcdDrvSendData(0xAE, LCD_SEND_MODE_CMD); // Display OFF
+  //lcd_drv_send_data(0xE1, LCD_SEND_MODE_CMD); // OTP Control Out
+  lcd_drv_send_data(0x30, LCD_SEND_MODE_CMD); // Extension Command 1
+  lcd_drv_send_data(0x94, LCD_SEND_MODE_CMD); // Sleep Out
+  lcd_drv_send_data(0xAE, LCD_SEND_MODE_CMD); // Display OFF
   delay_ms(50);
 
-  lcdDrvSendData(0x20, LCD_SEND_MODE_CMD); // Power Control
-  lcdDrvSendData(0x0B, LCD_DISP_MODE_DAT); // VB, VR, VF All ON
+  lcd_drv_send_data(0x20, LCD_SEND_MODE_CMD); // Power Control
+  lcd_drv_send_data(0x0B, LCD_DISP_MODE_DAT); // VB, VR, VF All ON
 
-  lcdDrvSendData(0x81, LCD_SEND_MODE_CMD); // Set Vop = 16V
-  lcdDrvSendData(0x28, LCD_DISP_MODE_DAT); //对比度设置,这里要根据自己的屏调整,不然可能会不显示
-  lcdDrvSendData(0x03, LCD_DISP_MODE_DAT);
+  lcd_drv_send_data(0x81, LCD_SEND_MODE_CMD); // Set Vop = 16V
+  lcd_drv_send_data(0x28, LCD_DISP_MODE_DAT); //对比度设置,这里要根据自己的屏调整,不然可能会不显示
+  lcd_drv_send_data(0x03, LCD_DISP_MODE_DAT);
 
-  lcdDrvSendData(0x31, LCD_SEND_MODE_CMD); // Extension Command 2
+  lcd_drv_send_data(0x31, LCD_SEND_MODE_CMD); // Extension Command 2
 
-  lcdDrvSendData(0x20, LCD_SEND_MODE_CMD); // Set Gray Scale Level
-  lcdDrvSendData(0x01, LCD_DISP_MODE_DAT);
-  lcdDrvSendData(0x03, LCD_DISP_MODE_DAT);
-  lcdDrvSendData(0x05, LCD_DISP_MODE_DAT);
-  lcdDrvSendData(0x07, LCD_DISP_MODE_DAT); //Light Gray Level Setting
-  lcdDrvSendData(0x09, LCD_DISP_MODE_DAT); //Light Gray Level Setting
-  lcdDrvSendData(0x0b, LCD_DISP_MODE_DAT); //Light Gray Level Setting
-  lcdDrvSendData(0x0d, LCD_DISP_MODE_DAT);
-  lcdDrvSendData(0x10, LCD_DISP_MODE_DAT);
-  lcdDrvSendData(0x11, LCD_DISP_MODE_DAT); //Dark Gray Level Setting
-  lcdDrvSendData(0x13, LCD_DISP_MODE_DAT);
-  lcdDrvSendData(0x15, LCD_DISP_MODE_DAT);
-  lcdDrvSendData(0x17, LCD_DISP_MODE_DAT); //Dark Gray Level Setting
-  lcdDrvSendData(0x19, LCD_DISP_MODE_DAT); //Dark Gray Level Setting
-  lcdDrvSendData(0x1b, LCD_DISP_MODE_DAT); //Dark Gray Level Setting
-  lcdDrvSendData(0x1d, LCD_DISP_MODE_DAT);
-  lcdDrvSendData(0x1f, LCD_DISP_MODE_DAT);
+  lcd_drv_send_data(0x20, LCD_SEND_MODE_CMD); // Set Gray Scale Level
+  lcd_drv_send_data(0x01, LCD_DISP_MODE_DAT);
+  lcd_drv_send_data(0x03, LCD_DISP_MODE_DAT);
+  lcd_drv_send_data(0x05, LCD_DISP_MODE_DAT);
+  lcd_drv_send_data(0x07, LCD_DISP_MODE_DAT); //Light Gray Level Setting
+  lcd_drv_send_data(0x09, LCD_DISP_MODE_DAT); //Light Gray Level Setting
+  lcd_drv_send_data(0x0b, LCD_DISP_MODE_DAT); //Light Gray Level Setting
+  lcd_drv_send_data(0x0d, LCD_DISP_MODE_DAT);
+  lcd_drv_send_data(0x10, LCD_DISP_MODE_DAT);
+  lcd_drv_send_data(0x11, LCD_DISP_MODE_DAT); //Dark Gray Level Setting
+  lcd_drv_send_data(0x13, LCD_DISP_MODE_DAT);
+  lcd_drv_send_data(0x15, LCD_DISP_MODE_DAT);
+  lcd_drv_send_data(0x17, LCD_DISP_MODE_DAT); //Dark Gray Level Setting
+  lcd_drv_send_data(0x19, LCD_DISP_MODE_DAT); //Dark Gray Level Setting
+  lcd_drv_send_data(0x1b, LCD_DISP_MODE_DAT); //Dark Gray Level Setting
+  lcd_drv_send_data(0x1d, LCD_DISP_MODE_DAT);
+  lcd_drv_send_data(0x1f, LCD_DISP_MODE_DAT);
 
-  lcdDrvSendData(0x32, LCD_SEND_MODE_CMD); // Analog Circuit Set
-  lcdDrvSendData(0x00, LCD_DISP_MODE_DAT);
-  lcdDrvSendData(0x01, LCD_DISP_MODE_DAT); // Booster Efficiency =Level 1
-  lcdDrvSendData(0x02, LCD_DISP_MODE_DAT); //Bias=1/12
+  lcd_drv_send_data(0x32, LCD_SEND_MODE_CMD); // Analog Circuit Set
+  lcd_drv_send_data(0x00, LCD_DISP_MODE_DAT);
+  lcd_drv_send_data(0x01, LCD_DISP_MODE_DAT); // Booster Efficiency =Level 1
+  lcd_drv_send_data(0x02, LCD_DISP_MODE_DAT); //Bias=1/12
 
-  lcdDrvSendData(0x51, LCD_SEND_MODE_CMD); // Booster Level x10
-  lcdDrvSendData(0xFB, LCD_DISP_MODE_DAT);
+  lcd_drv_send_data(0x51, LCD_SEND_MODE_CMD); // Booster Level x10
+  lcd_drv_send_data(0xFB, LCD_DISP_MODE_DAT);
 
-  lcdDrvSendData(0x30, LCD_SEND_MODE_CMD); // Extension Command 1
+  lcd_drv_send_data(0x30, LCD_SEND_MODE_CMD); // Extension Command 1
 
-  lcdDrvSendData(0xBC, LCD_SEND_MODE_CMD); // Data Scan Direction
-  lcdDrvSendData(0x00, LCD_DISP_MODE_DAT);
+  lcd_drv_send_data(0xBC, LCD_SEND_MODE_CMD); // Data Scan Direction
+  lcd_drv_send_data(0x00, LCD_DISP_MODE_DAT);
 
-  lcdDrvSendData(0x08, LCD_SEND_MODE_CMD); // Data Format Select, LSB is on bottom; D7->D0 (Default)
-  //lcdDrvSendData(0x0C, LCD_SEND_MODE_CMD); // Data Format Select, LSB is on top; D0->D7
+  lcd_drv_send_data(0x08, LCD_SEND_MODE_CMD); // Data Format Select, LSB is on bottom; D7->D0 (Default)
+  //lcd_drv_send_data(0x0C, LCD_SEND_MODE_CMD); // Data Format Select, LSB is on top; D0->D7
 
-  lcdDrvSendData(0xA6, LCD_SEND_MODE_CMD); // Normal Display
-  lcdDrvSendData(0x31, LCD_SEND_MODE_CMD); // Extension Command 2
-  lcdDrvSendData(0x40, LCD_SEND_MODE_CMD); // Internal Power Supply
+  lcd_drv_send_data(0xA6, LCD_SEND_MODE_CMD); // Normal Display
+  lcd_drv_send_data(0x31, LCD_SEND_MODE_CMD); // Extension Command 2
+  lcd_drv_send_data(0x40, LCD_SEND_MODE_CMD); // Internal Power Supply
 
-  lcdDrvSetMode();
+  lcd_drv_set_mode();
 
-  lcdDrvSendData(0x30, LCD_SEND_MODE_CMD); // Extension Command 1
-  lcdDrvSendData(0xAF, LCD_SEND_MODE_CMD); // Display ON
+  lcd_drv_send_data(0x30, LCD_SEND_MODE_CMD); // Extension Command 1
+  lcd_drv_send_data(0xAF, LCD_SEND_MODE_CMD); // Display ON
 
-  //lcdDrvGrayTest();
+  //lcd_drv_test_gray();
   //delay_ms(1000);
 }
 
 /*
- * lcdGdiUpdate:
+ * lcd_drv_update:
  *	Copy our software version to the real display
  *********************************************************************************
  */
-void lcdGdiUpdate(void)
+void lcd_drv_update(void)
 {
   uint8_t x = 0, y = 0;
-  lcdDrvSetMode();
-  lcdDrvSendData(0x5C, LCD_SEND_MODE_CMD); // write data to lcd
-  for (y = 0; y < LCD_HEIGHT_PAGE_MAX; y++)
+  lcd_drv_set_mode();
+  lcd_drv_send_data(0x5C, LCD_SEND_MODE_CMD); // write data to lcd
+  for (y = 0; y < LCD_DRV_PAGE_MAX; y++)
   {
-    for (x = 0; x < LCD_WIDTH_X; x++)
+    for (x = 0; x < LCD_DRV_MAX_X; x++)
     {
-      lcdDrvSendData(frameBuffer[y][x], LCD_DISP_MODE_DAT);
+      lcd_drv_send_data(frameBuffer[y][x], LCD_DISP_MODE_DAT);
     }
   }
 }
 
 /*
- * lcdGdiSetOrientation:
+ * lcd_drv_set_point:
+ *	Plot a pixel.
+ *********************************************************************************
+ */
+void lcd_drv_set_point(int32_t x, int32_t y, int32_t colour)
+{
+  uint8_t bitmsk = 0;
+  uint8_t bitmv = 0;
+  uint8_t colour_t = (uint8_t)colour;
+  uint8_t frameBuffer_t = 0;
+  if (mirrorX)
+    x = (LCD_DRV_MAX_X - x - 1);
+
+  if (mirrorY)
+    y = (LCD_DRV_MAX_Y - y - 1);
+
+  lastX = x;
+  lastY = y;
+
+  if ((x < 0) || (x >= LCD_DRV_MAX_X) || (y < 0) || (y >= LCD_DRV_MAX_Y))
+    return;
+
+  colour_t = colour_t & LCD_DRV_COLOUR_BIT_MSK;
+  bitmsk = (y % LCD_DRV_PAGE_ROW);
+  bitmv = ((LCD_DRV_PAGE_ROW - bitmsk - 1) * LCD_DRV_COLOUR_BIT);
+
+  frameBuffer_t = frameBuffer[y / LCD_DRV_PAGE_ROW][x];
+
+  frameBuffer_t = (frameBuffer_t & ((uint8_t)(~(LCD_DRV_COLOUR_BIT_MSK << bitmv))));
+
+  frameBuffer_t = (frameBuffer_t | ((uint8_t)(colour_t << bitmv)));
+
+  frameBuffer[y / LCD_DRV_PAGE_ROW][x] = frameBuffer_t;
+}
+
+/*
+ * lcd_drv_set_point:
+ *	Plot a pixel.
+ *********************************************************************************
+ */
+int32_t lcd_drv_get_point(int32_t x, int32_t y)
+{
+  uint8_t bitmsk = 0;
+  uint8_t bitmv = 0;
+  uint8_t frameBuffer_t = 0;
+  uint8_t colour = 0;
+  if (mirrorX)
+    x = (LCD_DRV_MAX_X - x - 1);
+
+  if (mirrorY)
+    y = (LCD_DRV_MAX_Y - y - 1);
+
+  if ((x < 0) || (x >= LCD_DRV_MAX_X) || (y < 0) || (y >= LCD_DRV_MAX_Y))
+    return -1;
+
+  bitmsk = (y % LCD_DRV_PAGE_ROW);
+  bitmv = ((LCD_DRV_PAGE_ROW - bitmsk - 1) * LCD_DRV_COLOUR_BIT);
+
+  frameBuffer_t = frameBuffer[y / LCD_DRV_PAGE_ROW][x];
+
+  frameBuffer_t = ((uint8_t)(frameBuffer_t >> bitmv));
+  colour = frameBuffer_t & LCD_DRV_COLOUR_BIT_MSK;
+
+  return (int32_t)colour;
+}
+
+/*
+ * lcd_drv_bmp_speed:
+ *	Send a picture to the display. 
+ *********************************************************************************
+ */
+void lcd_drv_bmp_speed(int32_t x0, int32_t y0, int32_t width, int32_t height, uint8_t *bmp, int32_t colour)
+{
+  int32_t x = 0, y = 0;
+  int32_t width_t = width;
+  int32_t i = 0;
+  uint8 dat = 0;
+
+  x0 = ((x0 >= LCD_DRV_MAX_X) ? (LCD_DRV_MAX_X - 1) : ((x0 < 0) ? 0 : x0));
+  y0 = ((y0 >= LCD_DRV_MAX_Y) ? (LCD_DRV_MAX_Y - 1) : ((y0 < 0) ? 0 : y0));
+
+#if 0
+  if ((y0 % LCD_DRV_PAGE_ROW) != 0)
+  {
+    y0 = ((y0 / LCD_DRV_PAGE_ROW) + 1) * LCD_DRV_PAGE_ROW;
+  }
+#endif
+
+  height = ((height + y0) >= LCD_DRV_MAX_Y) ? LCD_DRV_MAX_Y - y0 : height;
+  y0 = ((y0 % LCD_DRV_PAGE_ROW == 0) ? (y0 / LCD_DRV_PAGE_ROW) : (y0 / LCD_DRV_PAGE_ROW + 1));
+  width = ((width + x0) >= LCD_DRV_MAX_X) ? LCD_DRV_MAX_X - x0 : width;
+  height = ((height % LCD_DRV_PAGE_ROW == 0) ? (height / LCD_DRV_PAGE_ROW) : (height / LCD_DRV_PAGE_ROW + 1));
+
+  //lcd_drv_set_mode();
+  #if 0
+  for (y = y0; y < height; y++)
+  {
+    lcd_drv_set_pos(x0, y);
+    lcd_drv_send_data(0x5C, LCD_SEND_MODE_CMD); // write data to lcd
+    for (x = x0; x < width; x++)
+    {
+      if ((x >= LCD_DRV_MAX_X) || (y >= LCD_DRV_PAGE_MAX))
+      {
+        break;
+      }
+      dat = *bmp++;
+      lcd_drv_send_data(((colour != 0) ? dat : ~dat), LCD_DISP_MODE_DAT);
+    }
+  }
+  #else
+  lcd_drv_set_pos(0, 0);
+  lcd_drv_send_data(0x5C, LCD_SEND_MODE_CMD); // write data to lcd
+  for (y = 0; y < LCD_DRV_PAGE_MAX; y++)
+  {
+    for (x = 0; x < LCD_DRV_MAX_X; x++)
+    {
+      if ((x < x0) || (x >= (width + x0)) || (y < y0) || (y0 >= (height + y0)))
+      {
+        dat = (colour != 0) ? 0x00 : (~0x00);
+      } 
+      else
+      {
+        dat = *bmp++;
+      }
+      lcd_drv_send_data(((colour != 0) ? dat : ~dat), LCD_DISP_MODE_DAT);
+    }
+  }
+  #endif
+  
+}
+
+/*
+ * lcd_drv_open:
+ *	Open hardware display.
+ *********************************************************************************
+ */
+void lcd_drv_open(void)
+{
+#if 0
+  lcd_drv_send_data(0X8D, LCD_SEND_MODE_CMD); //SET DCDC
+  lcd_drv_send_data(0X14, LCD_SEND_MODE_CMD); //DCDC ON
+  lcd_drv_send_data(0XAF, LCD_SEND_MODE_CMD); //DISPLAY ON
+#endif
+}
+
+/*
+ * lcd_drv_close:
+ *	Cloase the hardware display.
+ *********************************************************************************
+ */
+void lcd_drv_close(void)
+{
+#if 0
+  lcd_drv_send_data(0X8D, LCD_SEND_MODE_CMD); //SET DCDC
+  lcd_drv_send_data(0X10, LCD_SEND_MODE_CMD); //DCDC OFF
+  lcd_drv_send_data(0XAE, LCD_SEND_MODE_CMD); //DISPLAY OFF
+#endif
+}
+
+/*
+ * lcd_drv_hw_clear:
+ *	Clear the hardware display.
+ *********************************************************************************
+ */
+void lcd_drv_hw_clear(void)
+{
+#if 0
+  int32_t i, n;
+  for (i = 0; i < 8; i++)
+  {
+    lcd_drv_send_data(0xb0 + i, LCD_SEND_MODE_CMD);
+    lcd_drv_send_data(0x02, LCD_SEND_MODE_CMD);
+    lcd_drv_send_data(0x10, LCD_SEND_MODE_CMD);
+    for (n = 0; n < 128; n++)
+    {
+      lcd_drv_send_data(0, LCD_DISP_MODE_DAT);
+    }
+  }
+#endif
+}
+
+/*
+ * lcd_drv_clear:
+ *	Clear the display to the given colour.
+ *********************************************************************************
+ */
+
+void lcd_drv_clear(int32_t colour)
+{
+  int32_t x = 0, y = 0;
+  int32_t col = 0;
+
+  if (colour)
+    col = 0xff;
+  else
+    col = 0x00;
+
+  for (y = 0; y < LCD_DRV_PAGE_MAX; y++)
+  {
+    for (x = 0; x < LCD_DRV_MAX_X; x++)
+    {
+      frameBuffer[y][x] = col;
+    }
+  }
+}
+
+/*
+ * lcd_drv_init:
+ *	Initialise the display and GPIO.
+ *********************************************************************************
+ */
+int32_t lcd_drv_init(void)
+{
+  lcd_drv_hw_init();
+
+  lcd_drv_open();
+#if LCD_DRV_INCLUDE_GUILIB
+  lcd_drv_set_orientation(0);
+#endif
+  lcd_drv_clear(LCD_DRV_COLOUR_WHITE);
+  lcd_drv_hw_clear();
+  lcd_drv_update();
+
+  return 0;
+}
+
+/*
+ *********************************************************************************
+ * Standard Graphical Functions
+ *********************************************************************************
+ */
+#if LCD_DRV_INCLUDE_GUILIB
+/*
+ * lcd_drv_set_orientation:
  *	Set the display orientation:
  *	0: Normal, the display is portrait mode, 0,0 is top left
  *	1: Mirror x
@@ -302,7 +555,7 @@ void lcdGdiUpdate(void)
  *	3: Mirror x and y
  *********************************************************************************
  */
-void lcdGdiSetOrientation(int32_t orientation)
+void lcd_drv_set_orientation(int32_t orientation)
 {
   switch (orientation)
   {
@@ -332,96 +585,23 @@ void lcdGdiSetOrientation(int32_t orientation)
 }
 
 /*
- * lcdGdiGetScreenSize:
+ * lcd_drv_get_screen_size:
  *	Return the max X & Y screen sizes. Needs to be called again, if you 
  *	change screen orientation.
  *********************************************************************************
  */
-void lcdGdiGetScreenSize(int32_t *x, int32_t *y)
+void lcd_drv_get_screen_size(int32_t *x, int32_t *y)
 {
-  *x = LCD_WIDTH_X;
-  *y = LCD_HEIGHT_Y;
+  *x = LCD_DRV_MAX_X;
+  *y = LCD_DRV_MAX_Y;
 }
 
 /*
- *********************************************************************************
- * Standard Graphical Functions
- *********************************************************************************
- */
-
-/*
- * lcdGdiPoint:
- *	Plot a pixel.
- *********************************************************************************
- */
-void lcdGdiPoint(int32_t x, int32_t y, int32_t colour)
-{
-  uint8_t bitmsk = 0;
-  uint8_t bitmv = 0;
-  uint8_t colour_t = (uint8_t)colour;
-  uint8_t frameBuffer_t = 0;
-  if (mirrorX)
-    x = (LCD_WIDTH_X - x - 1);
-
-  if (mirrorY)
-    y = (LCD_HEIGHT_Y - y - 1);
-
-  lastX = x;
-  lastY = y;
-
-  if ((x < 0) || (x >= LCD_WIDTH_X) || (y < 0) || (y >= LCD_HEIGHT_Y))
-    return;
-
-  colour_t = colour_t & LCD_COLOUT_BIT_MSK;
-  bitmsk = (y % LCD_HEIGHT_PAGE_ROW);
-  bitmv = ((LCD_HEIGHT_PAGE_ROW - bitmsk - 1) * LCD_COLOUR_BIT);
-
-  frameBuffer_t = frameBuffer[y / LCD_HEIGHT_PAGE_ROW][x];
-
-  frameBuffer_t = (frameBuffer_t & ((uint8_t)(~(LCD_COLOUT_BIT_MSK << bitmv))));
-
-  frameBuffer_t = (frameBuffer_t | ((uint8_t)(colour_t << bitmv)));
-
-  frameBuffer[y / LCD_HEIGHT_PAGE_ROW][x] = frameBuffer_t;
-}
-
-/*
- * lcdGdiPoint:
- *	Plot a pixel.
- *********************************************************************************
- */
-int32_t lcdGdiGetpoint(int32_t x, int32_t y)
-{
-  uint8_t bitmsk = 0;
-  uint8_t bitmv = 0;
-  uint8_t frameBuffer_t = 0;
-  uint8_t colour = 0;
-  if (mirrorX)
-    x = (LCD_WIDTH_X - x - 1);
-
-  if (mirrorY)
-    y = (LCD_HEIGHT_Y - y - 1);
-
-  if ((x < 0) || (x >= LCD_WIDTH_X) || (y < 0) || (y >= LCD_HEIGHT_Y))
-    return -1;
-
-  bitmsk = (y % LCD_HEIGHT_PAGE_ROW);
-  bitmv = ((LCD_HEIGHT_PAGE_ROW - bitmsk - 1) * LCD_COLOUR_BIT);
-
-  frameBuffer_t = frameBuffer[y / LCD_HEIGHT_PAGE_ROW][x];
-
-  frameBuffer_t = ((uint8_t)(frameBuffer_t >> bitmv));
-  colour = frameBuffer_t & LCD_COLOUT_BIT_MSK;
-
-  return (int32_t)colour;
-}
-
-/*
- * lcdGdiLine: lcdGdiLineTo:
+ * lcd_drv_line: lcd_drv_lineto:
  *	Classic Bressenham Line code
  *********************************************************************************
  */
-void lcdGdiLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t colour)
+void lcd_drv_line(int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t colour)
 {
   int32_t dx, dy;
   int32_t sx, sy;
@@ -439,7 +619,7 @@ void lcdGdiLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t colour)
   err = dx - dy;
   for (;;)
   {
-    lcdGdiPoint(x0, y0, colour);
+    lcd_drv_set_point(x0, y0, colour);
     if ((x0 == x1) && (y0 == y1))
       break;
 
@@ -459,55 +639,55 @@ void lcdGdiLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t colour)
   }
 }
 
-void lcdGdiLineTo(int32_t x, int32_t y, int32_t colour)
+void lcd_drv_lineto(int32_t x, int32_t y, int32_t colour)
 {
-  lcdGdiLine(lastX, lastY, x, y, colour);
+  lcd_drv_line(lastX, lastY, x, y, colour);
 }
 
 /*
- * lcdGdiRectangle:
+ * lcd_drv_rectangle:
  *	A rectangle is a spoilt days fishing
  *********************************************************************************
  */
-void lcdGdiRectangle(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t colour, int32_t filled)
+void lcd_drv_rectangle(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t colour, int32_t filled)
 {
   int32_t x;
   if (filled)
   {
     if (x1 == x2)
     {
-      lcdGdiLine(x1, y1, x2, y2, colour);
+      lcd_drv_line(x1, y1, x2, y2, colour);
     }
     else if (x1 < x2)
     {
       for (x = x1; x <= x2; ++x)
       {
-        lcdGdiLine(x, y1, x, y2, colour);
+        lcd_drv_line(x, y1, x, y2, colour);
       }
     }
     else
     {
       for (x = x2; x <= x1; ++x)
       {
-        lcdGdiLine(x, y1, x, y2, colour);
+        lcd_drv_line(x, y1, x, y2, colour);
       }
     }
   }
   else
   {
-    lcdGdiLine(x1, y1, x2, y1, colour);
-    lcdGdiLineTo(x2, y2, colour);
-    lcdGdiLineTo(x1, y2, colour);
-    lcdGdiLineTo(x1, y1, colour);
+    lcd_drv_line(x1, y1, x2, y1, colour);
+    lcd_drv_lineto(x2, y2, colour);
+    lcd_drv_lineto(x1, y2, colour);
+    lcd_drv_lineto(x1, y1, colour);
   }
 }
 
 /*
- * lcdGdiCircle:
+ * lcd_drv_circle:
  *      This is the midpoint32 circle algorithm.
  *********************************************************************************
  */
-void lcdGdiCircle(int32_t x, int32_t y, int32_t r, int32_t colour, int32_t filled)
+void lcd_drv_circle(int32_t x, int32_t y, int32_t r, int32_t colour, int32_t filled)
 {
   int32_t ddF_x = 1;
   int32_t ddF_y = -2 * r;
@@ -518,15 +698,15 @@ void lcdGdiCircle(int32_t x, int32_t y, int32_t r, int32_t colour, int32_t fille
 
   if (filled)
   {
-    lcdGdiLine(x, y + r, x, y - r, colour);
-    lcdGdiLine(x + r, y, x - r, y, colour);
+    lcd_drv_line(x, y + r, x, y - r, colour);
+    lcd_drv_line(x + r, y, x - r, y, colour);
   }
   else
   {
-    lcdGdiPoint(x, y + r, colour);
-    lcdGdiPoint(x, y - r, colour);
-    lcdGdiPoint(x + r, y, colour);
-    lcdGdiPoint(x - r, y, colour);
+    lcd_drv_set_point(x, y + r, colour);
+    lcd_drv_set_point(x, y - r, colour);
+    lcd_drv_set_point(x + r, y, colour);
+    lcd_drv_set_point(x - r, y, colour);
   }
 
   while (x1 < y1)
@@ -542,27 +722,27 @@ void lcdGdiCircle(int32_t x, int32_t y, int32_t r, int32_t colour, int32_t fille
     f += ddF_x;
     if (filled)
     {
-      lcdGdiLine(x + x1, y + y1, x - x1, y + y1, colour);
-      lcdGdiLine(x + x1, y - y1, x - x1, y - y1, colour);
-      lcdGdiLine(x + y1, y + x1, x - y1, y + x1, colour);
-      lcdGdiLine(x + y1, y - x1, x - y1, y - x1, colour);
+      lcd_drv_line(x + x1, y + y1, x - x1, y + y1, colour);
+      lcd_drv_line(x + x1, y - y1, x - x1, y - y1, colour);
+      lcd_drv_line(x + y1, y + x1, x - y1, y + x1, colour);
+      lcd_drv_line(x + y1, y - x1, x - y1, y - x1, colour);
     }
     else
     {
-      lcdGdiPoint(x + x1, y + y1, colour);
-      lcdGdiPoint(x - x1, y + y1, colour);
-      lcdGdiPoint(x + x1, y - y1, colour);
-      lcdGdiPoint(x - x1, y - y1, colour);
-      lcdGdiPoint(x + y1, y + x1, colour);
-      lcdGdiPoint(x - y1, y + x1, colour);
-      lcdGdiPoint(x + y1, y - x1, colour);
-      lcdGdiPoint(x - y1, y - x1, colour);
+      lcd_drv_set_point(x + x1, y + y1, colour);
+      lcd_drv_set_point(x - x1, y + y1, colour);
+      lcd_drv_set_point(x + x1, y - y1, colour);
+      lcd_drv_set_point(x - x1, y - y1, colour);
+      lcd_drv_set_point(x + y1, y + x1, colour);
+      lcd_drv_set_point(x - y1, y + x1, colour);
+      lcd_drv_set_point(x + y1, y - x1, colour);
+      lcd_drv_set_point(x - y1, y - x1, colour);
     }
   }
 }
 
 /*
- * lcdGdiEllipse:
+ * lcd_drv_ellipse:
  *	Fast ellipse drawing algorithm by 
  *      John Kennedy
  *	Mathematics Department
@@ -573,23 +753,23 @@ void lcdGdiCircle(int32_t x, int32_t y, int32_t r, int32_t colour, int32_t fille
  *	-Confirned in email this algorithm is in the public domain -GH-
  *********************************************************************************
  */
-static void plot4ellipsePoints(int32_t cx, int32_t cy, int32_t x, int32_t y, int32_t colour, int32_t filled)
+static void plot_for_ellipse_points(int32_t cx, int32_t cy, int32_t x, int32_t y, int32_t colour, int32_t filled)
 {
   if (filled)
   {
-    lcdGdiLine(cx + x, cy + y, cx - x, cy + y, colour);
-    lcdGdiLine(cx - x, cy - y, cx + x, cy - y, colour);
+    lcd_drv_line(cx + x, cy + y, cx - x, cy + y, colour);
+    lcd_drv_line(cx - x, cy - y, cx + x, cy - y, colour);
   }
   else
   {
-    lcdGdiPoint(cx + x, cy + y, colour);
-    lcdGdiPoint(cx - x, cy + y, colour);
-    lcdGdiPoint(cx - x, cy - y, colour);
-    lcdGdiPoint(cx + x, cy - y, colour);
+    lcd_drv_set_point(cx + x, cy + y, colour);
+    lcd_drv_set_point(cx - x, cy + y, colour);
+    lcd_drv_set_point(cx - x, cy - y, colour);
+    lcd_drv_set_point(cx + x, cy - y, colour);
   }
 }
 
-void lcdGdiEllipse(int32_t cx, int32_t cy, int32_t xRadius, int32_t yRadius, int32_t colour, int32_t filled)
+void lcd_drv_ellipse(int32_t cx, int32_t cy, int32_t xRadius, int32_t yRadius, int32_t colour, int32_t filled)
 {
   int32_t x, y;
   int32_t xChange, yChange, ellipseError;
@@ -611,7 +791,7 @@ void lcdGdiEllipse(int32_t cx, int32_t cy, int32_t xRadius, int32_t yRadius, int
 
   while (stoppingX >= stoppingY) // 1st set of point32s
   {
-    plot4ellipsePoints(cx, cy, x, y, colour, filled);
+    plot_for_ellipse_points(cx, cy, x, y, colour, filled);
     ++y;
     stoppingY += twoAsquare;
     ellipseError += yChange;
@@ -638,7 +818,7 @@ void lcdGdiEllipse(int32_t cx, int32_t cy, int32_t xRadius, int32_t yRadius, int
 
   while (stoppingX <= stoppingY) //2nd set of point32s
   {
-    plot4ellipsePoints(cx, cy, x, y, colour, filled);
+    plot_for_ellipse_points(cx, cy, x, y, colour, filled);
     ++x;
     stoppingX += twoBsquare;
     ellipseError += xChange;
@@ -655,11 +835,11 @@ void lcdGdiEllipse(int32_t cx, int32_t cy, int32_t xRadius, int32_t yRadius, int
 }
 
 /*
- * lcdGdiPutchar:
+ * lcd_drv_putc:
  *	Print a single character to the screen
  *********************************************************************************
  */
-void lcdGdiPutchar(int32_t x, int32_t y, int32_t c, int32_t bgCol, int32_t fgCol)
+void lcd_drv_putc(int32_t x, int32_t y, int32_t c, int32_t bgCol, int32_t fgCol)
 {
   int32_t y1, y2;
 
@@ -668,7 +848,7 @@ void lcdGdiPutchar(int32_t x, int32_t y, int32_t c, int32_t bgCol, int32_t fgCol
 
   // Can't print if we're offscreen
 
-  if ((x < 0) || (x > (LCD_WIDTH_X - fontWidth)) || (y < 0) || (y > (LCD_HEIGHT_Y - fontHeight)))
+  if ((x < 0) || (x > (LCD_DRV_MAX_X - fontWidth)) || (y < 0) || (y > (LCD_DRV_MAX_Y - fontHeight)))
     return;
 
   fontPtr = font + c * fontHeight;
@@ -677,23 +857,23 @@ void lcdGdiPutchar(int32_t x, int32_t y, int32_t c, int32_t bgCol, int32_t fgCol
   {
     y2 = y + y1;
     line = *fontPtr++;
-    lcdGdiPoint(x + 0, y2, (line & 0x80) == 0 ? bgCol : fgCol);
-    lcdGdiPoint(x + 1, y2, (line & 0x40) == 0 ? bgCol : fgCol);
-    lcdGdiPoint(x + 2, y2, (line & 0x20) == 0 ? bgCol : fgCol);
-    lcdGdiPoint(x + 3, y2, (line & 0x10) == 0 ? bgCol : fgCol);
-    lcdGdiPoint(x + 4, y2, (line & 0x08) == 0 ? bgCol : fgCol);
-    lcdGdiPoint(x + 5, y2, (line & 0x04) == 0 ? bgCol : fgCol);
-    lcdGdiPoint(x + 6, y2, (line & 0x02) == 0 ? bgCol : fgCol);
-    lcdGdiPoint(x + 7, y2, (line & 0x01) == 0 ? bgCol : fgCol);
+    lcd_drv_set_point(x + 0, y2, (line & 0x80) == 0 ? bgCol : fgCol);
+    lcd_drv_set_point(x + 1, y2, (line & 0x40) == 0 ? bgCol : fgCol);
+    lcd_drv_set_point(x + 2, y2, (line & 0x20) == 0 ? bgCol : fgCol);
+    lcd_drv_set_point(x + 3, y2, (line & 0x10) == 0 ? bgCol : fgCol);
+    lcd_drv_set_point(x + 4, y2, (line & 0x08) == 0 ? bgCol : fgCol);
+    lcd_drv_set_point(x + 5, y2, (line & 0x04) == 0 ? bgCol : fgCol);
+    lcd_drv_set_point(x + 6, y2, (line & 0x02) == 0 ? bgCol : fgCol);
+    lcd_drv_set_point(x + 7, y2, (line & 0x01) == 0 ? bgCol : fgCol);
   }
 }
 
 /*
- * lcdGdiPuts:
+ * lcd_drv_puts:
  *	Send a string to the display. Obeys \n and \r formatting
  *********************************************************************************
  */
-void lcdGdiPuts(int32_t x, int32_t y, const char *str, int32_t bgCol, int32_t fgCol)
+void lcd_drv_puts(int32_t x, int32_t y, const char *str, int32_t bgCol, int32_t fgCol)
 {
   int32_t c, mx, my;
 
@@ -716,11 +896,11 @@ void lcdGdiPuts(int32_t x, int32_t y, const char *str, int32_t bgCol, int32_t fg
       continue;
     }
 
-    lcdGdiPutchar(mx, my, c, bgCol, fgCol);
+    lcd_drv_putc(mx, my, c, bgCol, fgCol);
 
     mx += fontWidth;
-    //if (mx >= (LCD_WIDTH_X - fontWidth))
-    if (mx > (LCD_WIDTH_X - fontWidth))
+    //if (mx >= (LCD_DRV_MAX_X - fontWidth))
+    if (mx > (LCD_DRV_MAX_X - fontWidth))
     {
       mx = 0;
       my += fontHeight;
@@ -729,24 +909,24 @@ void lcdGdiPuts(int32_t x, int32_t y, const char *str, int32_t bgCol, int32_t fg
 }
 
 /*
- * lcdGdiPutnum:
+ * lcd_drv_putn:
  *	Send a number to the display. 
  *********************************************************************************
  */
-void lcdGdiPutnum(int32_t x, int32_t y, int32_t num, int32_t bgCol, int32_t fgCol)
+void lcd_drv_putn(int32_t x, int32_t y, int32_t num, int32_t bgCol, int32_t fgCol)
 {
   int8_t numString[50] = {0};
   if (sprintf(numString, "%d", num) < 0)
     return;
-  lcdGdiPuts(x, y, numString, bgCol, fgCol);
+  lcd_drv_puts(x, y, numString, bgCol, fgCol);
 }
 
 /*
- * lcdGdiPutbmp:
+ * lcd_drv_bmp:
  *	Send a picture to the display. 
  *********************************************************************************
  */
-void lcdGdiPutbmp(int32_t x0, int32_t y0, int32_t with, int32_t height, uint8_t *bmp, int32_t colour)
+void lcd_drv_bmp(int32_t x0, int32_t y0, int32_t with, int32_t height, uint8_t *bmp, int32_t colour)
 {
   int32_t x = 0, y = 0;
   uint8_t data = 0;
@@ -760,119 +940,4 @@ void lcdGdiPutbmp(int32_t x0, int32_t y0, int32_t with, int32_t height, uint8_t 
     }
   }
 }
-
-/*
- * lcdGdiPutbmpspeed:
- *	Send a picture to the display. 
- *********************************************************************************
- */
-void lcdGdiPutbmpspeed(int32_t x0, int32_t y0, int32_t with, int32_t height, uint8_t *bmp, int32_t colour)
-{
-#if 0
-  int32_t x = 0, y = 0;
-  uint8_t data = 0;
-
-  for (y = y0; y < (height / 8); y++)
-  {
-    setPos(x0, y);
-    for (x = x0; x < with; x++)
-    {
-      data = *bmp++;
-      lcdDrvSendData(((colour != 0) ? data : ~data), LCD_DISP_MODE_DAT);
-    }
-  }
 #endif
-}
-
-/*
- * lcdGdiOpen:
- *	Open hardware display.
- *********************************************************************************
- */
-void lcdGdiOpen(void)
-{
-#if 0
-  lcdDrvSendData(0X8D, LCD_SEND_MODE_CMD); //SET DCDC
-  lcdDrvSendData(0X14, LCD_SEND_MODE_CMD); //DCDC ON
-  lcdDrvSendData(0XAF, LCD_SEND_MODE_CMD); //DISPLAY ON
-#endif
-}
-
-/*
- * lcdGdiCloase:
- *	Cloase the hardware display.
- *********************************************************************************
- */
-void lcdGdiCloase(void)
-{
-#if 0
-  lcdDrvSendData(0X8D, LCD_SEND_MODE_CMD); //SET DCDC
-  lcdDrvSendData(0X10, LCD_SEND_MODE_CMD); //DCDC OFF
-  lcdDrvSendData(0XAE, LCD_SEND_MODE_CMD); //DISPLAY OFF
-#endif
-}
-
-/*
- * lcdGdiHardwareClear:
- *	Clear the hardware display.
- *********************************************************************************
- */
-void lcdGdiHardwareClear(void)
-{
-#if 0
-  int32_t i, n;
-  for (i = 0; i < 8; i++)
-  {
-    lcdDrvSendData(0xb0 + i, LCD_SEND_MODE_CMD);
-    lcdDrvSendData(0x02, LCD_SEND_MODE_CMD);
-    lcdDrvSendData(0x10, LCD_SEND_MODE_CMD);
-    for (n = 0; n < 128; n++)
-    {
-      lcdDrvSendData(0, LCD_DISP_MODE_DAT);
-    }
-  }
-#endif
-}
-
-/*
- * lcdGdiClear:
- *	Clear the display to the given colour.
- *********************************************************************************
- */
-
-void lcdGdiClear(int32_t colour)
-{
-  int32_t x = 0, y = 0;
-  int32_t col = 0;
-
-  if (colour)
-    col = 0xff;
-  else
-    col = 0x00;
-
-  for (y = 0; y < LCD_HEIGHT_PAGE_MAX; y++)
-  {
-    for (x = 0; x < LCD_WIDTH_X; x++)
-    {
-      frameBuffer[y][x] = col;
-    }
-  }
-}
-
-/*
- * lcdGdiSetup:
- *	Initialise the display and GPIO.
- *********************************************************************************
- */
-int32_t lcdGdiSetup(void)
-{
-  lcdDrvInit();
-
-  lcdGdiOpen();
-  lcdGdiSetOrientation(0);
-  lcdGdiClear(LCD_COLOUR_WHITE);
-  lcdGdiHardwareClear();
-  lcdGdiUpdate();
-
-  return 0;
-}
