@@ -12,6 +12,16 @@
 
 ![JLX19296G-382-PN_04](doc/JLX19296G-382-PN_04.jpg)
 
+> GPIO
+
+![pin-define-0](doc/pin-define-0.jpg)
+
+![pin-define-1](doc/pin-define-1.jpg)
+
+![pin-define-2](doc/pin-define-2.jpg)
+
+![pin-define-3](doc/pin-define-3.png)
+
 > USAGE
 
 ```bash
